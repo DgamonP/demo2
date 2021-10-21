@@ -1,0 +1,2 @@
+(()=>{var e={};(()=>{let r;e.lambdaHandler=async(e,l)=>{try{r={statusCode:200,body:JSON.stringify({message:"hello world"})}}catch(e){return console.log(e),e}return r}})(),module.exports=e})();
+//# sourceMappingURL=app.js.map
