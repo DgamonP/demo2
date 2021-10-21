@@ -1,0 +1,453 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'users administrator
+
+  Sample SAM Template for users
+
+  '
+Globals:
+  Function:
+    Timeout: 600
+    MemorySize: 1000
+    Runtime: nodejs14.x
+Parameters:
+  dataBaseConnection:
+    Type: String
+    Default: conection
+  ARNCognito:
+    Type: String
+    Default: idpool
+  ARNCognitoUsersOperator:
+    Type: String
+    Default: arn
+  ARNCognitoUsersCarrier:
+    Type: String
+    Default: arn
+  emailCognito:
+    Type: String
+    Default: arn
+  ARNEmail:
+    Type: String
+    Default: arn
+  ARNSns:
+    Type: String
+    Default: arn
+  IdGrupoCognitoCarrier:
+    Type: String
+    Default: arn
+Resources:
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: users
+      LambdaConfig:
+        PreTokenGeneration:
+          Fn::GetAtt:
+          - confirmUser
+          - Arn
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 6
+      UsernameAttributes:
+      - email
+      Schema:
+      - AttributeDataType: String
+        Name: email
+        Required: false
+      - AttributeDataType: String
+        Name: type
+        Required: false
+      - AttributeDataType: String
+        Name: token
+        Required: false
+      EmailConfiguration:
+        EmailSendingAccount: DEVELOPER
+        From:
+          Ref: emailCognito
+        ReplyToEmailAddress:
+          Ref: emailCognito
+        SourceArn:
+          Ref: ARNEmail
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: registerFront
+      UserPoolId:
+        Ref: CognitoUserPool
+      AccessTokenValidity: 12
+      IdTokenValidity: 12
+      RefreshTokenValidity: 31
+      WriteAttributes:
+      - custom:type
+      - custom:token
+      ReadAttributes:
+      - custom:type
+      - custom:token
+  userRegister:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: userRegister
+      Handler: app.lambdaHandler
+      Runtime: nodejs14.x
+      Policies:
+      - Statement:
+        - Sid: SNSPoliticas
+          Effect: Allow
+          Action:
+          - sns:CreatePlatformEndpoint
+          Resource: '*'
+        - Sid: cognitoIDPadminCreateUser
+          Effect: Allow
+          Action:
+          - cognito-idp:ListUsers
+          - cognito-idp:AdminCreateUser
+          Resource: '*'
+      - SNSPublishMessagePolicy:
+          TopicName: '*'
+      Environment:
+        Variables:
+          dataBaseConnection:
+            Ref: dataBaseConnection
+          ARNCognito:
+            Ref: ARNCognito
+      Events:
+        UsersCreate:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: ApiUsers
+            Path: /api/users/
+            Method: post
+  getAllUsers:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: getAllUsers
+      Handler: app.lambdaHandler
+      Runtime: nodejs14.x
+      Events:
+        getAllUsersApi:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: ApiUsers
+            Path: /api/users/
+            Method: get
+  confirmUser:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: confirmUser
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection:
+            Ref: dataBaseConnection
+  pushTokenNotification:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: pushTokenNotification
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection:
+            Ref: dataBaseConnection
+          arnSns:
+            Ref: ARNSns
+      Policies:
+      - Statement:
+        - Sid: SNSPoliticas
+          Effect: Allow
+          Action:
+          - sns:CreatePlatformEndpoint
+          Resource: '*'
+      - SNSPublishMessagePolicy:
+          TopicName: '*'
+      Events:
+        pushTokenNotificationApi:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: ApiUsers
+            Path: /api/users/pushTokenNotification/
+            Method: post
+  updateTokenSession:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: updateTokenSession
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection:
+            Ref: dataBaseConnection
+      Events:
+        updateTokenSessionApi:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: ApiUsers
+            Path: /api/users/updateTokenSession/{userId}
+            Method: put
+  LambdaCognitoUserPoolExecutionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+        - userRegister
+        - Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn:
+        Fn::Sub: arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}
+  LambdaCognitoUserPoolExecutionPermission2:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+        - confirmUser
+        - Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn:
+        Fn::Sub: arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}
+  ApiUsers:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors:
+        AllowMethods: '''OPTIONS,POST,GET,PUT,DELETE'''
+        AllowOrigin: '''*'''
+        AllowHeaders: '''*'''
+      Auth:
+        DefaultAuthorizer: MyCognitoUserPoolAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          MyCognitoUserPoolAuthorizer:
+            UserPoolArn:
+            - Ref: ARNCognitoUsersOperator
+            - Ref: ARNCognitoUsersCarrier
+  userRegisterCarrier:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: userRegisterCarrier
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection:
+            Ref: dataBaseConnection
+          arnSns:
+            Ref: ARNSns
+      Policies:
+      - Statement:
+        - Sid: SNSPoliticas
+          Effect: Allow
+          Action:
+          - sns:CreatePlatformEndpoint
+          Resource: '*'
+      - SNSPublishMessagePolicy:
+          TopicName: '*'
+  confrimUsersCarrier:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: confrimUsersCarrier
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection:
+            Ref: dataBaseConnection
+      Policies:
+      - Statement:
+        - Sid: SNSPoliticas
+          Effect: Allow
+          Action:
+          - sns:CreatePlatformEndpoint
+          Resource: '*'
+      - SNSPublishMessagePolicy:
+          TopicName: '*'
+  updateUserProfileAddress:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: updateUserProfileAddress
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection:
+            Ref: dataBaseConnection
+      Events:
+        updateUserProfileAddress:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: ApiUsers
+            Path: /api/users/profile/{userId}
+            Method: put
+  getUserById:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: getUserById
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection:
+            Ref: dataBaseConnection
+      Events:
+        getUserById:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: ApiUsers
+            Path: /api/users/{userId}
+            Method: get
+  getUserByIdCognito:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: getUserByIdCognito
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection:
+            Ref: dataBaseConnection
+      Events:
+        getUserByIdCognito:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: ApiUsers
+            Path: /api/cognito/users/{userId}
+            Method: get
+  deleteUserResourcesPhotos:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: deleteUserResourcesPhotos
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection:
+            Ref: dataBaseConnection
+      Events:
+        deleteUserResourcesPhotos:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: ApiUsers
+            Path: /api/users/{userId}/photo/
+            Method: put
+  searchUserTransportUnit:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: searchUserTransportUnit
+      Handler: app.lambdaHandler
+      Runtime: nodejs14.x
+      Environment:
+        Variables:
+          dataBaseConnection:
+            Ref: dataBaseConnection
+      Events:
+        searchUserTransportUnit:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: ApiUsers
+            Path: /api/users/transportUnit/search/
+            Method: get
+  getUsersByCompanyClientId:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: getUsersByCompanyClientId
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection:
+            Ref: dataBaseConnection
+      Events:
+        getUsersByCompanyClientId:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: ApiUsers
+            Path: /api/users/companyclient/{companyClientId}
+            Method: get
+  updateArrayToken:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: updateArrayToken
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection:
+            Ref: dataBaseConnection
+      Events:
+        updateArrayToken:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: ApiUsers
+            Path: /api/users/automatic/token/
+            Method: put
+  getUserByNumberPhone:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: getUserByNumberPhone
+      Handler: app.lambdaHandler
+      Policies:
+      - Statement:
+        - Sid: SNSPoliticas
+          Effect: Allow
+          Action:
+          - sns:CreatePlatformEndpoint
+          Resource: '*'
+        - Sid: cognitoIDPadminCreateUser
+          Effect: Allow
+          Action:
+          - cognito-idp:ListUsers
+          - cognito-idp:AdminCreateUser
+          - cognito-idp:AdminDisableUser
+          - cognito-idp:AdminEnableUser
+          - cognito-idp:AdminUpdateUserAttributes
+          - cognito-idp:AdminConfirmSignUp
+          Resource: '*'
+      - SNSPublishMessagePolicy:
+          TopicName: '*'
+      Environment:
+        Variables:
+          dataBaseConnection:
+            Ref: dataBaseConnection
+          IdGrupoCognitoCarrier:
+            Ref: IdGrupoCognitoCarrier
+      Events:
+        getUserByNumberPhone:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: ApiUsersInvit
+            Path: /api/users/phone/{phone}
+            Method: get
+  ApiUsersInvit:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      Cors:
+        AllowMethods: '''OPTIONS,POST,GET,PUT,DELETE'''
+        AllowOrigin: '''*'''
+        AllowHeaders: '''*'''
+Outputs:
+  userRegister:
+    Description: User Register Lambda Function ARN
+    Value:
+      Fn::GetAtt:
+      - userRegister
+      - Arn
+  CognitoUserPoolId:
+    Description: Cognito User Pool Id
+    Value:
+      Ref: CognitoUserPool
+  CognitoUserPoolClientId:
+    Description: Cognito User Pool Client Id
+    Value:
+      Ref: CognitoUserPoolClient
+  ApiUrl:
+    Description: API endpoint URL for Prod environment
+    Value:
+      Fn::Sub: https://${ApiUsers}.execute-api.${AWS::Region}.amazonaws.com/prod/
+  ApiUrlInv:
+    Description: API endpoint URL for Prod environment
+    Value:
+      Fn::Sub: https://${ApiUsersInvit}.execute-api.${AWS::Region}.amazonaws.com/dev/

@@ -5,7 +5,8 @@
   "main": "index.js",
   "dependencies": {
     "aws-sdk": "^2.1012.0",
-    "source-map-support": "^0.5.20"
+    "source-map-support": "^0.5.20",
+    "mongoose": "^5.12.10"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.84",
@@ -22,7 +23,7 @@
     "clean": "rimraf .aws-sam .vscode",
     "prebuild": "rimraf .aws-sam .vscode",
     "prewatch": "rimraf .aws-sam .vscode",
-    "watch": "webpack-cli -w"  
+    "watch": "webpack-cli -w"
   },
   "author": "",
   "license": "ISC"

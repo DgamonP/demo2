@@ -1,9 +1,9 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  dem2o
+  users administrator
 
-  Sample SAM Template for dem2o
+  Sample SAM Template for users
 
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
@@ -92,7 +92,7 @@ Resources:
   userRegister:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/users/userRegister
+      CodeUri: userRegister/
       Handler: app.lambdaHandler
       Runtime: nodejs14.x
       Policies:
@@ -125,7 +125,7 @@ Resources:
   getAllUsers:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/users/getAllUsers
+      CodeUri: getAllUsers/
       Handler: app.lambdaHandler
       Runtime: nodejs14.x
       Events:
@@ -139,7 +139,7 @@ Resources:
   confirmUser:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/users/confirmUser
+      CodeUri: confirmUser/
       Handler: app.lambdaHandler
       Environment:
         Variables:
@@ -148,7 +148,7 @@ Resources:
   pushTokenNotification:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/users/pushTokenNotification
+      CodeUri: pushTokenNotification/
       Handler: app.lambdaHandler
       Environment:
         Variables:
@@ -174,7 +174,7 @@ Resources:
   updateTokenSession:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/users/updateTokenSession
+      CodeUri: updateTokenSession/
       Handler: app.lambdaHandler
       Environment:
         Variables:
@@ -227,7 +227,7 @@ Resources:
   userRegisterCarrier:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/users/userRegisterCarrier
+      CodeUri: userRegisterCarrier/
       Handler: app.lambdaHandler
       Environment:
         Variables:
@@ -246,7 +246,7 @@ Resources:
   confrimUsersCarrier:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/users/confrimUsersCarrier
+      CodeUri: confrimUsersCarrier/
       Handler: app.lambdaHandler
       Environment:
         Variables:
@@ -264,7 +264,7 @@ Resources:
   updateUserProfileAddress:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/users/updateUserProfileAddress
+      CodeUri: updateUserProfileAddress/
       Handler: app.lambdaHandler
       Environment:
         Variables:
@@ -280,7 +280,7 @@ Resources:
   getUserById:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/users/getUserById
+      CodeUri: getUserById/
       Handler: app.lambdaHandler
       Environment:
         Variables:
@@ -296,7 +296,7 @@ Resources:
   getUserByIdCognito:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/users/getUserByIdCognito
+      CodeUri: getUserByIdCognito/
       Handler: app.lambdaHandler
       Environment:
         Variables:
@@ -312,7 +312,7 @@ Resources:
   deleteUserResourcesPhotos:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/users/deleteUserResourcesPhotos
+      CodeUri: deleteUserResourcesPhotos/
       Handler: app.lambdaHandler
       Environment:
         Variables:
@@ -328,7 +328,7 @@ Resources:
   searchUserTransportUnit:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
-      CodeUri: src/users/searchUserTransportUnit
+      CodeUri: searchUserTransportUnit/
       Handler: app.lambdaHandler
       Runtime: nodejs14.x
       Environment:
@@ -345,7 +345,7 @@ Resources:
   getUsersByCompanyClientId:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/users/getUsersByCompanyClientId
+      CodeUri: getUsersByCompanyClientId/
       Handler: app.lambdaHandler
       Environment:
         Variables:
@@ -361,7 +361,7 @@ Resources:
   updateArrayToken:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/users/updateArrayToken
+      CodeUri: updateArrayToken/
       Handler: app.lambdaHandler
       Environment:
         Variables:
@@ -377,7 +377,7 @@ Resources:
   getUserByNumberPhone:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/users/getUserByNumberPhone
+      CodeUri: getUserByNumberPhone/
       Handler: app.lambdaHandler
       Policies:
         - Statement:
@@ -528,7 +528,7 @@ Resources:
   userRegisterMaster:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/users/userRegisterMaster
+      CodeUri: userRegisterMaster/
       Handler: app.lambdaHandler
       Runtime: nodejs14.x
       Policies:
@@ -603,37 +603,3 @@ Outputs:
   ARNCognitoUsersCarrier:
     Description: 'Cognito User Carrier ARN'
     Value: !GetAtt CognitoUserCarrierPruebaPool.Arn
-
-
-# # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
-# Globals:
-#   Function:
-#     Timeout: 3
-
-# Resources:
-#   HelloWorldFunction:
-#     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
-#     Properties:
-#       CodeUri: src/users/src/hello-world/
-#       Handler: app.lambdaHandler
-#       Runtime: nodejs10.x
-#       Events:
-#         HelloWorld:
-#           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-#           Properties:
-#             Path: /hello
-#             Method: get
-
-# Outputs:
-#   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-#   # Find out more about other implicit resources you can reference within SAM
-#   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-#   HelloWorldApi:
-#     Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-#     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-#   HelloWorldFunction:
-#     Description: "Hello World Lambda Function ARN"
-#     Value: !GetAtt HelloWorldFunction.Arn
-#   HelloWorldFunctionIamRole:
-#     Description: "Implicit IAM Role created for Hello World function"
-#     Value: !GetAtt HelloWorldFunctionRole.Arn
