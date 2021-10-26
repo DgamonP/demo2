@@ -5,8 +5,12 @@
   "main": "index.js",
   "dependencies": {
     "aws-sdk": "^2.1012.0",
-    "source-map-support": "^0.5.20",
-    "mongoose": "^5.12.10"
+    "aws4": "^1.11.0",
+    "moment": "^2.24.0",
+    "moment-timezone": "^0.5.28",
+    "mongodb-client-encryption": "^1.2.7",
+    "mongoose": "^5.12.10",
+    "source-map-support": "^0.5.20"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.84",

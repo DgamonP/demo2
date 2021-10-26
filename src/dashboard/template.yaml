@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  dashboard
+
+  Sample SAM Template for dashboard
+  
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 600
+    MemorySize: 800
+
+Parameters:
+  dataBaseConnection:
+    Type: String
+    Default: "mongodb://deltauser:deltauserla@3.88.191.249:27017/deltastaging?authSource=deltastaging"
+  ARNCognitoUsersOperator:
+    Type: String
+    Default: 'arn'
+
+Resources:
+
+  dashboardApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors: 
+        AllowMethods: "'OPTIONS,POST,GET,PUT,DELETE'"
+        AllowOrigin: "'*'"
+        AllowHeaders: "'*'"
+      Auth:
+        DefaultAuthorizer: CognitoAutorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          CognitoAutorizer:
+            # UserPoolArn: "arn:aws:cognito-idp:us-east-1:879323694935:userpool/us-east-1_Rhq7ZwU3v"
+            UserPoolArn: !Ref ARNCognitoUsersOperator
+
+  dashboardTMS:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: dashboardTMS/
+      Handler: app.lambdaHandler
+      Runtime: nodejs14.x
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+      Events:
+        dashboardTMS:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            RestApiId: !Ref dashboardApi
+            Path: /api/dashboard/
+            Method: get
+
+  # dashboard:
+  #   Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  #   Properties:
+  #     CodeUri: dashboard/
+  #     Handler: app.lambdaHandler
+  #     Runtime: nodejs14.x
+  #     Events:
+  #       dashboard:
+  #         Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+  #         Properties:
+  #           RestApiId: !Ref dashboardApi
+  #           Path: /api/dashboard/google/
+  #           Method: get
+
+  # pruebaCrom:
+  #   Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  #   Properties:
+  #     CodeUri: pruebaCrom/
+  #     Handler: app.lambdaHandler
+  #     Runtime: nodejs14.x
+  #     Environment:
+  #       Variables:
+  #         dataBaseConnection: !Ref dataBaseConnection
+  #     Events:
+  #       ScheduledEvent:
+  #         Type: Schedule
+  #         Properties:
+  #           Schedule: cron(* 4 * * ? *)
+  #           Enabled: True 
+
+Outputs:
+  ApiUrl:
+    Description: "API endpoint URL for Prod environment"
+    Value: !Sub 'https://${dashboardApi}.execute-api.${AWS::Region}.amazonaws.com/prod/api/dashboard'

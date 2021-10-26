@@ -1,0 +1,12 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "dashboard"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-1vo31wjwfnz9a"
+s3_prefix = "dashboard"
+region = "us-east-1"
+profile = "staging"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "dataBaseConnection=\"mongodb+srv://userClusterDeltax:g1k0KThJrMpvnEMM@deltaxdb.airpm.mongodb.net/deltastaging\" ARNCognitoUsersOperator=\"arn:aws:cognito-idp:us-east-1:345062269307:userpool/us-east-1_uR6LFXj4U\""

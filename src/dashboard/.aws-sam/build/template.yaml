@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'dashboard
+
+  Sample SAM Template for dashboard
+
+  '
+Globals:
+  Function:
+    Timeout: 600
+    MemorySize: 800
+Parameters:
+  dataBaseConnection:
+    Type: String
+    Default: mongodb://deltauser:deltauserla@3.88.191.249:27017/deltastaging?authSource=deltastaging
+  ARNCognitoUsersOperator:
+    Type: String
+    Default: arn
+Resources:
+  dashboardApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors:
+        AllowMethods: '''OPTIONS,POST,GET,PUT,DELETE'''
+        AllowOrigin: '''*'''
+        AllowHeaders: '''*'''
+      Auth:
+        DefaultAuthorizer: CognitoAutorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          CognitoAutorizer:
+            UserPoolArn:
+              Ref: ARNCognitoUsersOperator
+  dashboardTMS:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dashboardTMS
+      Handler: app.lambdaHandler
+      Runtime: nodejs14.x
+      Environment:
+        Variables:
+          dataBaseConnection:
+            Ref: dataBaseConnection
+      Events:
+        dashboardTMS:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: dashboardApi
+            Path: /api/dashboard/
+            Method: get
+Outputs:
+  ApiUrl:
+    Description: API endpoint URL for Prod environment
+    Value:
+      Fn::Sub: https://${dashboardApi}.execute-api.${AWS::Region}.amazonaws.com/prod/api/dashboard

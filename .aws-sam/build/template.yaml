@@ -1,0 +1,547 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: |
+  dem2o
+  Sample SAM Template for dem2o
+Globals:
+  Function:
+    Timeout: 600
+    MemorySize: 1000
+    Runtime: nodejs14.x
+Parameters:
+  dataBaseConnection:
+    Type: String
+    Default: conection
+  emailCognito:
+    Type: String
+    Default: arn
+  ARNEmail:
+    Type: String
+    Default: arn
+  ARNSns:
+    Type: String
+    Default: arn
+  keyFirstUser:
+    Type: String
+    Default: key
+Resources:
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: usersd
+      LambdaConfig:
+        PreTokenGeneration: !GetAtt confirmUser.Arn
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 6
+      UsernameAttributes:
+        - email
+      Schema:
+        - AttributeDataType: String
+          Name: email
+          Required: false
+        - AttributeDataType: String
+          Name: type
+          Required: false
+        - AttributeDataType: String
+          Name: token
+          Required: false
+      EmailConfiguration:
+        EmailSendingAccount: DEVELOPER
+        From: !Ref emailCognito
+        ReplyToEmailAddress: !Ref emailCognito
+        SourceArn: !Ref ARNEmail
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: registerFront
+      UserPoolId: !Ref CognitoUserPool
+      AccessTokenValidity: 12
+      IdTokenValidity: 12
+      RefreshTokenValidity: 31
+      WriteAttributes:
+        - custom:type
+        - custom:token
+      ReadAttributes:
+        - custom:type
+        - custom:token
+  userRegister:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: userRegister
+      Handler: app.lambdaHandler
+      Runtime: nodejs14.x
+      Policies:
+        - Statement:
+            - Sid: SNSPoliticas
+              Effect: Allow
+              Action:
+                - sns:CreatePlatformEndpoint
+              Resource: "*"
+            - Sid: cognitoIDPadminCreateUser
+              Effect: Allow
+              Action:
+                - cognito-idp:ListUsers
+                - cognito-idp:AdminCreateUser
+              Resource: "*"
+        - SNSPublishMessagePolicy:
+            TopicName: "*"
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+          ARNCognito: !GetAtt CognitoUserPool.ProviderName
+      Events:
+        UsersCreate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiUsers
+            Path: /api/users/
+            Method: post
+  getAllUsers:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: getAllUsers
+      Handler: app.lambdaHandler
+      Runtime: nodejs14.x
+      Events:
+        getAllUsersApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiUsers
+            Path: /api/users/
+            Method: get
+  confirmUser:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: confirmUser
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+  pushTokenNotification:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: pushTokenNotification
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+          arnSns: !Ref ARNSns
+      Policies:
+        - Statement:
+            - Sid: SNSPoliticas
+              Effect: Allow
+              Action:
+                - sns:CreatePlatformEndpoint
+              Resource: "*"
+        - SNSPublishMessagePolicy:
+            TopicName: "*"
+      Events:
+        pushTokenNotificationApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiUsers
+            Path: /api/users/pushTokenNotification/
+            Method: post
+  updateTokenSession:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: updateTokenSession
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+      Events:
+        updateTokenSessionApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiUsers
+            Path: /api/users/updateTokenSession/{userId}
+            Method: put
+  LambdaCognitoUserPoolExecutionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt userRegister.Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !Sub >-
+        arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}
+  LambdaCognitoUserPoolExecutionPermission2:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt confirmUser.Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !Sub >-
+        arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}
+  ApiUsers:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors:
+        AllowMethods: "'OPTIONS,POST,GET,PUT,DELETE'"
+        AllowOrigin: "'*'"
+        AllowHeaders: "'*'"
+      Auth:
+        DefaultAuthorizer: MyCognitoUserPoolAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          MyCognitoUserPoolAuthorizer:
+            UserPoolArn:
+              - !GetAtt CognitoUserPool.Arn
+              - !GetAtt CognitoUserCarrierPruebaPool.Arn
+  userRegisterCarrier:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: userRegisterCarrier
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+          arnSns: !Ref ARNSns
+      Policies:
+        - Statement:
+            - Sid: SNSPoliticas
+              Effect: Allow
+              Action:
+                - sns:CreatePlatformEndpoint
+              Resource: "*"
+        - SNSPublishMessagePolicy:
+            TopicName: "*"
+  confrimUsersCarrier:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: confrimUsersCarrier
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+      Policies:
+        - Statement:
+            - Sid: SNSPoliticas
+              Effect: Allow
+              Action:
+                - sns:CreatePlatformEndpoint
+              Resource: "*"
+        - SNSPublishMessagePolicy:
+            TopicName: "*"
+  updateUserProfileAddress:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: updateUserProfileAddress
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+      Events:
+        updateUserProfileAddress:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiUsers
+            Path: /api/users/profile/{userId}
+            Method: put
+  getUserById:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: getUserById
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+      Events:
+        getUserById:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiUsers
+            Path: /api/users/{userId}
+            Method: get
+  getUserByIdCognito:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: getUserByIdCognito
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+      Events:
+        getUserByIdCognito:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiUsers
+            Path: /api/cognito/users/{userId}
+            Method: get
+  deleteUserResourcesPhotos:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: deleteUserResourcesPhotos
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+      Events:
+        deleteUserResourcesPhotos:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiUsers
+            Path: /api/users/{userId}/photo/
+            Method: put
+  searchUserTransportUnit:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: searchUserTransportUnit
+      Handler: app.lambdaHandler
+      Runtime: nodejs14.x
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+      Events:
+        searchUserTransportUnit:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiUsers
+            Path: /api/users/transportUnit/search/
+            Method: get
+  getUsersByCompanyClientId:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: getUsersByCompanyClientId
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+      Events:
+        getUsersByCompanyClientId:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiUsers
+            Path: /api/users/companyclient/{companyClientId}
+            Method: get
+  updateArrayToken:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: updateArrayToken
+      Handler: app.lambdaHandler
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+      Events:
+        updateArrayToken:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiUsers
+            Path: /api/users/automatic/token/
+            Method: put
+  getUserByNumberPhone:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: getUserByNumberPhone
+      Handler: app.lambdaHandler
+      Policies:
+        - Statement:
+            - Sid: SNSPoliticas
+              Effect: Allow
+              Action:
+                - sns:CreatePlatformEndpoint
+              Resource: "*"
+            - Sid: cognitoIDPadminCreateUser
+              Effect: Allow
+              Action:
+                - cognito-idp:ListUsers
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminDisableUser
+                - cognito-idp:AdminEnableUser
+                - cognito-idp:AdminUpdateUserAttributes
+                - cognito-idp:AdminConfirmSignUp
+              Resource: "*"
+        - SNSPublishMessagePolicy:
+            TopicName: "*"
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+          IdGrupoCognitoCarrier: !GetAtt CognitoUserCarrierPruebaPool.ProviderName
+      Events:
+        getUserByNumberPhone:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiUsersInvit
+            Path: /api/users/phone/{phone}
+            Method: get
+  ApiUsersInvit:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      Cors:
+        AllowMethods: "'OPTIONS,POST,GET,PUT,DELETE'"
+        AllowOrigin: "'*'"
+        AllowHeaders: "'*'"
+  CognitoUserCarrierPruebaPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: userCarrier
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+      UsernameAttributes:
+        - phone_number
+      Schema:
+        - AttributeDataType: String
+          Name: phone_number
+          Required: false
+        - AttributeDataType: String
+          Name: token
+          Required: false
+  CognitoUserCarrierPruebaPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: userCarrierApp
+      UserPoolId: !Ref CognitoUserCarrierPruebaPool
+      AccessTokenValidity: 24
+      IdTokenValidity: 24
+      RefreshTokenValidity: 3650
+      WriteAttributes:
+        - custom:token
+      ReadAttributes:
+        - custom:token
+  IdentityUsersCarrierPrueba:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: true
+      CognitoIdentityProviders:
+        - ClientId: !Ref CognitoUserCarrierPruebaPoolClient
+          ProviderName: !GetAtt CognitoUserCarrierPruebaPool.ProviderName
+      IdentityPoolName: userPruebaCarrier
+  AuthenticatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: Cognito_userPruebaCarrierAuth_Role
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref IdentityUsersCarrierPrueba
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+      Policies:
+        - PolicyName: Cognito_userPruebaCarrierAuth
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - mobileanalytics:PutEvents
+                  - cognito-sync:*
+                  - cognito-identity:*
+                Resource:
+                  - "*"
+  UnauthenticatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: Cognito_userPruebaCarrierUnauth_Role
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref IdentityUsersCarrierPrueba
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: unauthenticated
+      Policies:
+        - PolicyName: Cognito_userPruebaCarrierAuth
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - mobileanalytics:PutEvents
+                  - cognito-sync:*
+                Resource:
+                  - "*"
+  IdentityUsersCarrierPruebaRoles:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref IdentityUsersCarrierPrueba
+      Roles:
+        authenticated: !GetAtt AuthenticatedRole.Arn
+        unauthenticated: !GetAtt UnauthenticatedRole.Arn
+  userRegisterMaster:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: userRegisterMaster
+      Handler: app.lambdaHandler
+      Runtime: nodejs14.x
+      Policies:
+        - Statement:
+            - Sid: SNSPoliticas
+              Effect: Allow
+              Action:
+                - sns:CreatePlatformEndpoint
+              Resource: "*"
+            - Sid: cognitoIDPadminCreateUser
+              Effect: Allow
+              Action:
+                - cognito-idp:ListUsers
+                - cognito-idp:AdminCreateUser
+              Resource: "*"
+        - SNSPublishMessagePolicy:
+            TopicName: "*"
+      Environment:
+        Variables:
+          dataBaseConnection: !Ref dataBaseConnection
+          ARNCognito: !GetAtt CognitoUserPool.ProviderName
+          keyFirstUser: !Ref keyFirstUser
+      Events:
+        UsersCreate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiUsersInvit
+            Path: /api/users/
+            Method: post
+  LambdaCognitoUserPoolExecutionPermission3:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt userRegisterMaster.Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !Sub >-
+        arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}
+Outputs:
+  userRegister:
+    Description: User Register Lambda Function ARN
+    Value: !GetAtt userRegister.Arn
+  CognitoUserPoolId:
+    Description: Cognito User Pool Id
+    Value: !Ref CognitoUserPool
+  CognitoUserPoolClientId:
+    Description: Cognito User Pool Client Id
+    Value: !Ref CognitoUserCarrierPruebaPoolClient
+  CognitoUserCarrierPruebaPoolId:
+    Description: Cognito User Pool Id
+    Value: !Ref CognitoUserCarrierPruebaPool
+  CognitoUserCarrierPruebaPoolClientId:
+    Description: Cognito User Pool Client Id
+    Value: !Ref CognitoUserCarrierPruebaPoolClient
+  ApiUrl:
+    Description: API endpoint URL for Prod environment
+    Value: !Sub >-
+      https://${ApiUsers}.execute-api.${AWS::Region}.amazonaws.com/prod/api/users
+  ApiUrlInv:
+    Description: API endpoint URL for Prod environment
+    Value: !Sub >-
+      https://${ApiUsersInvit}.execute-api.${AWS::Region}.amazonaws.com/dev/api/users
+  ARNCognitoUsersOperator:
+    Description: Cognito Users Operator ARN
+    Value: !GetAtt CognitoUserPool.Arn
+  ARNCognitoUsersCarrier:
+    Description: Cognito User Carrier ARN
+    Value: !GetAtt CognitoUserCarrierPruebaPool.Arn

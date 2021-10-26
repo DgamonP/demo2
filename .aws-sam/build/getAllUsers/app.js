@@ -1,0 +1,2 @@
+(()=>{var e={lambdaHandler:async(e,o)=>{let s;const a={"Access-Control-Allow-Origin":"*","Content-Type":"application/json"};try{s={statusCode:200,headers:a,body:JSON.stringify({message:"hello world 8"})}}catch(e){console.log(e),s={statusCode:404,headers:a,body:JSON.stringify({message:"Error algo salió mal."})}}return s}};module.exports=e})();
+//# sourceMappingURL=app.js.map
